@@ -104,18 +104,19 @@ class SrunClient:
             print(e)
 
     def show_online(self):
-        if not self.check_online(): return
-        self._log('###*** ONLINE INFORMATION! ***###')
-        header = '================== ONLIN INFORMATION =================='
+        try:
+            if not self.check_online(): return
+            self._log('###*** ONLINE INFORMATION! ***###')
+            header = '================== ONLIN INFORMATION =================='
 
-        print(header)
-        print('Username: {}'.format(self.online_info['username']))
-        print('Login time: {}'.format(self.time2date(self.online_info['login_time'])))
-        print('Now time: {}'.format(self.time2date(self.online_info['now_time'])))
-        print('Used data: {}'.format(self.humanable_bytes(self.online_info['used_bytes'])))
-        print('Ip: {}'.format(self.online_info['ip']))
-        print('Balance: {}'.format(self.online_info['balance']))
-        print('=' * len(header))
+            print(header)
+            print('Username: {}'.format(self.online_info['username']))
+            print('Login time: {}'.format(self.time2date(self.online_info['login_time'])))
+            print('Now time: {}'.format(self.time2date(self.online_info['now_time'])))
+            print('Used data: {}'.format(self.humanable_bytes(self.online_info['used_bytes'])))
+            print('Ip: {}'.format(self.online_info['ip']))
+            print('Balance: {}'.format(self.online_info['balance']))
+            print('=' * len(header))
 
     def login(self,ac_id):
         if self.check_online():
