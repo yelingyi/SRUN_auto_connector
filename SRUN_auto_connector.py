@@ -336,7 +336,7 @@ def main():
             else:
                 print("Ethernet adapter is not connected,try dial")
                 logging.info("Ethernet adapter is not connected,try dial")
-                if not rasdial("宽带连接", encrypt_username(username_,kinds[kind_index]) , password_):
+                if not rasdial("Dialog", encrypt_username(username_,kinds[kind_index]) , password_):
                     print("dialing failed")
                     logging.error("dialing failed")
                 else:
@@ -359,7 +359,7 @@ def main():
                     logging.info("the broadband is not connected,try dial")
                     wifi_logout()
                     subprocess.run(["netsh", "wlan", "disconnect"], creationflags=subprocess.CREATE_NO_WINDOW)
-                    if not rasdial("宽带连接", encrypt_username(username_,kinds[kind_index]) , password_):
+                    if not rasdial("Dialog", encrypt_username(username_,kinds[kind_index]) , password_):
                         print("dialing failed")
                         logging.error("dialing failed")
                     else:
