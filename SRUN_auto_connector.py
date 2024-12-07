@@ -8,6 +8,8 @@ import os
 from ping3 import ping
 import requests
 import urllib.request
+from tkinter import simpledialog, Tk
+import json
 
 if bytes is str: input = raw_input
 
@@ -36,23 +38,55 @@ except ImportError:
         resp = urllib.request.urlopen(req)
         return resp.read().decode("utf-8")
 
+def get_user_credentials():
+    # 定义文件路径
+    user_data_path = os.path.join(os.path.expanduser("~"), "user_credentials.json")
+    
+    if os.path.exists(user_data_path):
+        with open(user_data_path, 'r') as f:
+            return json.load(f)
+    else:
+        # 弹出窗口要求填写信息
+        root = Tk()
+        root.withdraw()  # 隐藏主窗口
+
+        username_ = simpledialog.askstring("Input", "请输入用户名（学号）:")
+        password_ = simpledialog.askstring("Input", "请输入密码:", show='*')
+        kind_index = simpledialog.askinteger("Input", "请输入网络类型（1:移动有线 2：电信 3：教师 4：学生）:", minvalue=1, maxvalue=4)
+        system_ip = simpledialog.askstring("Input", "请输入学校认证ip:")
+        # 保存用户输入到文件
+        user_data = {
+            "username": username_,
+            "password": password_,
+            "kind_index": kind_index,
+            "system_ip": system_ip
+        }
+        with open(user_data_path, 'w') as f:
+            json.dump(user_data, f)
+
+        return user_data
+
 
 class SrunClient:
     name = 'SWPU'
-    srun_ip = '172.16.245.50' # 自己学校认证ip，格式为#.#.#.# 例如123.123.123.123
+    srun_ip = None # 自己学校认证ip，格式为#.#.#.# 例如123.123.123.123
 
-    login_url = 'http://{}/cgi-bin/srun_portal'.format(srun_ip)
-    online_url = 'http://{}/cgi-bin/rad_user_info'.format(srun_ip)
+    login_url = None
+    online_url = None
     # headers = {'User-Agent': 'SrunClient {}'.format(name)}
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.90 Safari/537.36'}
 
-    def __init__(self, username=None, passwd=None, print_log=True):
+    def __init__(self, username=None, passwd=None, print_log=True,srun_ip=None):
         self.username = username
         self.passwd = passwd
         self.print_log = print_log
         self.check_status = 0
+        self.srun_ip=srun_ip
         self.online_info = dict()
+        self.login_url = 'http://{}/cgi-bin/srun_portal'.format(self.srun_ip)
+        self.online_url = 'http://{}/cgi-bin/rad_user_info'.format(self.srun_ip)
+        print(self.srun_ip)
         #self.check_online()
 
     def _encrypt(self, passwd):
@@ -84,24 +118,25 @@ class SrunClient:
             print('[SrunClient {}] {}'.format(self.name, msg))
 
     def check_online(self):
-        resp_text = get_func(self.online_url, headers=self.headers)
-        if 'not_online' in resp_text:
-            self._log('###*** NOT ONLINE! ***###')
-            return False
         try:
-            items = resp_text.split(',')
-            self.online_info = {
-                'online': True, 'username': items[0],
-                'login_time': items[1], 'now_time': items[2],
-                'used_bytes': items[6], 'used_second': items[7],
-                'ip': items[8], 'balance': items[11],
-                'auth_server_version': items[21]
-            }
-            return True
+            resp_text = get_func(self.online_url, headers=self.headers)
+            if 'not_online' in resp_text:
+                self._log('###*** NOT ONLINE! ***###')
+                return False
+                items = resp_text.split(',')
+                self.online_info = {
+                    'online': True, 'username': items[0],
+                    'login_time': items[1], 'now_time': items[2],
+                    'used_bytes': items[6], 'used_second': items[7],
+                    'ip': items[8], 'balance': items[11],
+                    'auth_server_version': items[21]
+                }
+                return True
         except Exception as e:
-            print(resp_text)
-            print('Catch `Status Internal Server Error`? The request is frequent!')
+            #print(resp_text)
+            #print('Catch `Status Internal Server Error`? The request is frequent!')
             print(e)
+            return False
 
     def show_online(self):
         try:
@@ -117,7 +152,8 @@ class SrunClient:
             print('Ip: {}'.format(self.online_info['ip']))
             print('Balance: {}'.format(self.online_info['balance']))
             print('=' * len(header))
-
+        except:
+            pass
     def login(self,ac_id):
         if self.check_online():
             self._log('###*** ALREADY ONLINE! ***###')
@@ -136,7 +172,11 @@ class SrunClient:
             'mbytes': 0, 'minutes': 0,
             'ac_id': ac_id
         }
-        resp_text = post_func(self.login_url, data=payload, headers=self.headers)
+        
+        try:
+            resp_text = post_func(self.login_url, data=payload, headers=self.headers)
+        except:
+            resp_text=''
         if 'login_ok' in resp_text:
             self._log('###*** LOGIN SUCCESS! ***###')
             self._log(resp_text)
@@ -245,7 +285,7 @@ def wifi_login():
     
     # 进行 ping 测试
     if not ping("baidu.com"):
-        if not ping("172.16.245.50"):
+        if not ping_win32("172.16.245.50"):
             available_networks = scan_networks()
             print(f"available_networks: {available_networks}")
             logging.info(f"available_networks: {available_networks}")
@@ -270,6 +310,13 @@ def wifi_login():
         else:
             srun_client.login(ac_id=1)
         srun_client.show_online()
+def ping_win32(host):
+    """Ping a host and return True if it's reachable."""
+    try:
+        subprocess.run(["ping", "-n", "1", host], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, creationflags=subprocess.CREATE_NO_WINDOW)
+        return True
+    except subprocess.CalledProcessError:
+        return False
 def scan_networks():
     """扫描可用的无线网络并返回一个列表"""
     try:
@@ -369,14 +416,17 @@ def main():
         time.sleep(6)
 
 if __name__ == "__main__":
-    username_ = 'username'
-    password_ = 'password'
+    user_data = get_user_credentials()
+    username_ = user_data['username']
+    password_ = user_data['password']
+    kind_index = user_data['kind_index']
+    system_ip= user_data['system_ip']
     kinds = {1:'@ydyx',2:'@dx',3:'@tch',4:'@stu'}
-    kind_index=1
-    srun_client = SrunClient()
-    srun_client.username = encrypt_username(username_,kinds[kind_index]) # 修改自己深澜账号
-    srun_client.passwd = password_ #深澜密码
-    LOG_DIR = r"LOG_DIR"
+    srun_client = SrunClient(username = encrypt_username(username_,kinds[kind_index]),passwd = password_,srun_ip=system_ip)
+    #srun_client.username = encrypt_username(username_,kinds[kind_index])
+    #srun_client.passwd = password_
+    #srun_client.srun_ip=system_ip
+    LOG_DIR = r"D:\OneDrive - stu.swpu.edu.cn\桌面"
     LOG_FILE = os.path.join(LOG_DIR, "network_check.log")
     if not os.path.exists(LOG_DIR):
         os.makedirs(LOG_DIR)
