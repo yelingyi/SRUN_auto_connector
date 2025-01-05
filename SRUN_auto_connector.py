@@ -8,8 +8,9 @@ import os
 from ping3 import ping
 import requests
 import urllib.request
-from tkinter import simpledialog, Tk
+from tkinter import simpledialog, Tk ,messagebox
 import json
+import webbrowser
 
 if bytes is str: input = raw_input
 
@@ -123,7 +124,9 @@ class SrunClient:
             if 'not_online' in resp_text:
                 self._log('###*** NOT ONLINE! ***###')
                 return False
+            else:
                 items = resp_text.split(',')
+                print(items,resp_text)
                 self.online_info = {
                     'online': True, 'username': items[0],
                     'login_time': items[1], 'now_time': items[2],
@@ -185,6 +188,9 @@ class SrunClient:
         elif 'login_error' in resp_text:
             self._log('###*** LOGIN FAILED! (login error)***###')
             self._log(resp_text)
+            if 'concurrency control' in resp_text:
+                self._prompt_user()
+                self.login(ac_id)
             return False
         else:
             self._log('###*** LOGIN FAILED! (unknown error) ***###')
@@ -237,6 +243,17 @@ class SrunClient:
             num_KB = num_byte // 1024
             num_byte -= num_KB * 1024
         return '{} GB {} MB {} KB {} B'.format(num_GB, num_MB, num_KB, num_byte)
+    def _prompt_user(self):
+        # 打开浏览器
+        webbrowser.open("http://172.16.245.50:8800/login")
+        
+        # 创建弹出窗口
+        root = Tk()
+
+        # 显示提示框
+        messagebox.showinfo("提示", "请在浏览器中完成操作，完成后按 OK 继续。")
+
+        root.destroy()  # 销毁窗口
 
 # Flask 应用
 app = Flask(__name__)
@@ -284,7 +301,7 @@ def wifi_logout():
 def wifi_login():
     
     # 进行 ping 测试
-    if not ping("baidu.com"):
+    if not ping_win32("baidu.com"):
         if not ping_win32("172.16.245.50"):
             available_networks = scan_networks()
             print(f"available_networks: {available_networks}")
@@ -426,13 +443,15 @@ if __name__ == "__main__":
     #srun_client.username = encrypt_username(username_,kinds[kind_index])
     #srun_client.passwd = password_
     #srun_client.srun_ip=system_ip
+    srun_client.show_online()
     LOG_DIR = r"D:\OneDrive - stu.swpu.edu.cn\桌面"
     LOG_FILE = os.path.join(LOG_DIR, "network_check.log")
     if not os.path.exists(LOG_DIR):
         os.makedirs(LOG_DIR)
 
-    logging.basicConfig(filename=LOG_FILE, level=logging.ERROR,
+    logging.basicConfig(filename=LOG_FILE, level=logging.INFO,
                         format='%(asctime)s - %(levelname)s - %(message)s')
+
     import threading
     threading.Thread(target=main, daemon=True).start()
     app.run(host='0.0.0.0', port=5010)
